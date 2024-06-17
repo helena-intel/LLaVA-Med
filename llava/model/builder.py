@@ -1,12 +1,13 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, BitsAndBytesConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, BitsAndBytesConfig, CLIPImageProcessor
+import openvino as ov
 import torch
-from llava.model import LlavaMistralForCausalLM
+
+from llava.model import LlavaMistralForCausalLM, LlavaMistralModel, OVLlavaMistralForCausalLM
+
 from llava.constants import DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 
 
-def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="auto", device="cuda"):
-
-    kwargs = {}
+def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="auto", device="cuda", openvino=False, **kwargs):
 
     if device != "cuda":
         kwargs['device_map'] = {"": device}
@@ -23,17 +24,27 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
         )
     else:
         kwargs['torch_dtype'] = torch.float16
-    
-    if 'llava' in model_name.lower():
+
+    image_processor = None
+
+    if openvino:
+        core = ov.Core()
+        ov_config = kwargs.get("ov_config", {})
+        model = OVLlavaMistralForCausalLM(core, model_path, "CPU", False, 0, 0, 0, ov_config=ov_config)
+        tokenizer = AutoTokenizer.from_pretrained("microsoft/llava-med-v1.5-mistral-7b")
+        image_processor = CLIPImageProcessor.from_pretrained(model.config.mm_vision_tower)
+
+    elif 'llava' in model_name.lower():
         # Load LLaVA model
             if 'mistral' in model_name.lower():
                 tokenizer = AutoTokenizer.from_pretrained(model_path)
                 model = LlavaMistralForCausalLM.from_pretrained(
                     model_path,
-                    low_cpu_mem_usage=False,
+                    low_cpu_mem_usage=device=="cpu",
                     use_flash_attention_2=False,
                     **kwargs
                 )
+
     else:
         # Load language model
         if model_base is not None:
@@ -56,23 +67,23 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                 tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
                 model = AutoModelForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, **kwargs)
 
-    image_processor = None
 
-    if 'llava' in model_name.lower(): # or 'mistral' in model_name.lower():
+    if not openvino and ('llava' in model_name.lower() or 'mistral' in model_name.lower()):
         mm_use_im_start_end = getattr(model.config, "mm_use_im_start_end", False)
         mm_use_im_patch_token = getattr(model.config, "mm_use_im_patch_token", True)
         if mm_use_im_patch_token:
             tokenizer.add_tokens([DEFAULT_IMAGE_PATCH_TOKEN], special_tokens=True)
         if mm_use_im_start_end:
             tokenizer.add_tokens([DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN], special_tokens=True)
-        model.resize_token_embeddings(len(tokenizer))
+        if not openvino:  # TODO
+            model.resize_token_embeddings(len(tokenizer))
 
         vision_tower = model.get_vision_tower()
         if not vision_tower.is_loaded:
             vision_tower.load_model()
-        vision_tower.to(device=device, dtype=torch.float16)
-        model.model.mm_projector.to(device=device, dtype=torch.float16)
-        model.to(device=device, dtype=torch.float16)
+        vision_tower.to(device=device, dtype=torch.float16 if device == "cuda" else torch.float32)
+        model.model.mm_projector.to(device=device, dtype=torch.float16 if device == "cuda" else torch.float32)
+        model.to(device=device, dtype=torch.float16 if device == "cuda" else torch.float32)
         image_processor = vision_tower.image_processor
 
     if hasattr(model.config, "max_sequence_length"):

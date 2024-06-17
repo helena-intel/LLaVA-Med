@@ -1,4 +1,6 @@
 import argparse
+import numpy as np
+import time
 import torch
 import os
 import json
@@ -17,6 +19,7 @@ from transformers import set_seed, logging
 
 logging.set_verbosity_error()
 
+DEVICE = "cpu"
 
 def split_list(lst, n):
     """Split a list into n (roughly) equal-sized chunks"""
@@ -30,18 +33,32 @@ def get_chunk(lst, n, k):
 
 
 def eval_model(args):
+    eval_start = time.perf_counter()
     set_seed(0)
     # Model
     disable_torch_init()
     model_path = os.path.expanduser(args.model_path)
     model_name = get_model_name_from_path(model_path)
-    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name)
+    print(f"Evaluating {'OpenVINO' if args.openvino else 'PyTorch'} model")
 
-    questions = [json.loads(q) for q in open(os.path.expanduser(args.question_file), "r")]
+    kwargs = {}
+
+    if args.openvino and args.ov_config is not None:
+        with open(args.ov_config) as f:
+            ov_config = json.load(f)
+        kwargs["ov_config"] = ov_config
+
+    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name, device=DEVICE, openvino=args.openvino, **kwargs)
+
+    if args.openvino:
+        print("************* INFERENCE PRECISION HINT:", model.request.get_compiled_model().get_property("INFERENCE_PRECISION_HINT"))
+
+    questions = [json.loads(q) for q in open(os.path.expanduser(args.question_file), "r")][0:args.limit]
     questions = get_chunk(questions, args.num_chunks, args.chunk_idx)
     answers_file = os.path.expanduser(args.answers_file)
     os.makedirs(os.path.dirname(answers_file), exist_ok=True)
     ans_file = open(answers_file, "w")
+    durations = []
     for line in tqdm(questions):
         idx = line["question_id"]
         image_file = line["image"]
@@ -57,19 +74,22 @@ def eval_model(args):
         conv.append_message(conv.roles[1], None)
         prompt = conv.get_prompt()
 
-        input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
+        input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).to(DEVICE)
 
         image = Image.open(os.path.join(args.image_folder, image_file))
         image_tensor = process_images([image], image_processor, model.config)[0]
 
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
         keywords = [stop_str]
-        stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
+        # stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
 
+        images = image_tensor.unsqueeze(0).to(DEVICE)
+
+        start_time = time.perf_counter()
         with torch.inference_mode():
             output_ids = model.generate(
                 input_ids,
-                images=image_tensor.unsqueeze(0).half().cuda(),
+                images=images,
                 do_sample=True if args.temperature > 0 else False,
                 temperature=args.temperature,
                 top_p=args.top_p,
@@ -77,8 +97,18 @@ def eval_model(args):
                 # no_repeat_ngram_size=3,
                 max_new_tokens=1024,
                 use_cache=True)
+            end_time = time.perf_counter()
+
+        if args.openvino:
+            # Remove prompt from output
+            input_length = input_ids.shape[-1]
+            output_ids = torch.cat((output_ids[:,:1], output_ids[:, input_length:]), axis=1)
 
         outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
+
+        end_time = time.perf_counter()
+        duration = end_time - start_time
+        durations.append(duration)
 
         ans_id = shortuuid.uuid()
         ans_file.write(json.dumps({"question_id": idx,
@@ -86,9 +116,12 @@ def eval_model(args):
                                    "text": outputs,
                                    "answer_id": ans_id,
                                    "model_id": model_name,
+                                   "duration": duration,
                                    "metadata": {}}) + "\n")
         ans_file.flush()
     ans_file.close()
+    eval_end = time.perf_counter()
+    print(f"Evaluation finished. Total duration: {eval_end-eval_start:.2f} s. Mean inference duration: {np.mean(durations):.2f} s., Median: {np.median(durations):.2f} s.")
 
 
 if __name__ == "__main__":
@@ -101,9 +134,12 @@ if __name__ == "__main__":
     parser.add_argument("--conv-mode", type=str, default="vicuna_v1")
     parser.add_argument("--num-chunks", type=int, default=1)
     parser.add_argument("--chunk-idx", type=int, default=0)
-    parser.add_argument("--temperature", type=float, default=0.2)
+    parser.add_argument("--temperature", type=float, default=0)
     parser.add_argument("--top_p", type=float, default=None)
     parser.add_argument("--num_beams", type=int, default=1)
+    parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--openvino", action="store_true")
+    parser.add_argument("--ov_config", type=str, default=None)  # path to json file with OpenVINO config
     args = parser.parse_args()
 
     eval_model(args)

@@ -52,13 +52,13 @@ def chunk(lst, n):
 
 
 def infer(samples):
-    model_inst = llm.GPT("gpt-4-0314")
+    model_inst = llm.GPT("gpt-4")
 
     BATCH_SIZE = 1
     batch_samples = []
     results = []
     batch = []
-    
+
     print('Starting Multimodal Chat GPT Scoring Eval')
 
     for sample in tqdm(samples):
@@ -84,7 +84,7 @@ def infer(samples):
 def main(args):
     answer_data = util.load_file_jsonl(args.answers_file)
     question_data = util.load_file_jsonl(args.question_file)
-    
+
     samples = []
     for question, answer in zip(question_data, answer_data):
         question_copy = deepcopy(question)
@@ -92,7 +92,7 @@ def main(args):
         question['ans1'] = question_copy.pop('gpt4_answer')
         question['ans2'] = answer['text']
         samples.append(question)
-    
+
     results = infer(samples)
 
     # Create parent directory of output score files if it doesn't exist
