@@ -8,6 +8,8 @@
 # ## Get pretrained model
 
 import gc
+import os
+import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -171,7 +173,13 @@ if image_precision == "int8":
         # Smooth Quant algorithm reduces activation quantization error; optimal alpha value was obtained through grid search
         advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.6),
     )
-    ov.save_model(quantized_model, image_encoder_path)
+
+    with tempfile.TemporaryDirectory() as d:
+        temp_path = Path(d) / "image_encoder.xml"
+        ov.save_model(quantized_model, temp_path)
+        os.replace(temp_path, image_encoder_path)
+        os.replace(temp_path.with_suffix(".bin"), image_encoder_path.with_suffix(".bin"))
+
     print("Image encoder model successfully quantized")
     del ov_image_encoder
     del quantized_model
@@ -348,8 +356,6 @@ def patch_stateful(ov_model):
     make_stateful(ov_model, not_kv_inputs, key_value_input_names, key_value_output_names, batch_dim, num_attention_heads, None)
 
 
-
-
 class ModelWithPastWrapper(torch.nn.Module):
     def __init__(self, model):
         super().__init__()
@@ -396,4 +402,3 @@ if not second_stage_model_path.exists():
     del ov_model
     gc.collect()
     print("Llava model successfully converted")
-

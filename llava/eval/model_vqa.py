@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import psutil
 import time
 import torch
 import os
@@ -14,8 +15,18 @@ from llava.utils import disable_torch_init
 from llava.mm_utils import tokenizer_image_token, get_model_name_from_path, KeywordsStoppingCriteria, process_images
 
 from PIL import Image
+from openvino import get_version
 import math
 from transformers import set_seed, logging
+
+
+def get_cpu_affinity():
+    pid = os.getpid()  # Get the OS process ID
+    p = psutil.Process(pid)  # Get the process info via psutil
+    affinity = p.cpu_affinity()  # Get the CPU affinity
+    return affinity
+
+
 
 logging.set_verbosity_error()
 
@@ -50,8 +61,17 @@ def eval_model(args):
 
     tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name, device=DEVICE, openvino=args.openvino, **kwargs)
 
+    
+    current_affinity = get_cpu_affinity()
+    metadata = {"affinity": current_affinity}
+
+
     if args.openvino:
-        print("************* INFERENCE PRECISION HINT:", model.request.get_compiled_model().get_property("INFERENCE_PRECISION_HINT"))
+        inference_precision = model.request.get_compiled_model().get_property("INFERENCE_PRECISION_HINT")
+        metadata["inference_precision"] = inference_precision.to_string()
+        print("************* INFERENCE PRECISION HINT:", inference_precision.to_string())
+        metadata["ov_config"] =  ov_config if args.ov_config is not None else None
+        metadata["openvino_version"] = get_version()
 
     questions = [json.loads(q) for q in open(os.path.expanduser(args.question_file), "r")][0:args.limit]
     questions = get_chunk(questions, args.num_chunks, args.chunk_idx)
@@ -117,7 +137,7 @@ def eval_model(args):
                                    "answer_id": ans_id,
                                    "model_id": model_name,
                                    "duration": duration,
-                                   "metadata": {}}) + "\n")
+                                   "metadata": metadata}) + "\n")
         ans_file.flush()
     ans_file.close()
     eval_end = time.perf_counter()

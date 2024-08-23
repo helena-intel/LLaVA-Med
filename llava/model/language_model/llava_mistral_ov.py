@@ -10,6 +10,7 @@
 from pathlib import Path
 from typing import Optional, Tuple
 
+import nncf
 import numpy as np
 import torch
 from transformers import AutoConfig, StoppingCriteria
@@ -26,9 +27,8 @@ class OVLlavaMistralForCausalLM(GenerationMixin):
         if ov_config is None:
             ov_config = {}
         model_dir = Path(model_dir)
-        # ov_config = {}
-        self.image_encoder = core.compile_model(model_dir / "image_encoder.xml", device, config=ov_config)
-        self.token_embed = core.compile_model(model_dir / "token_embed.xml", device, config=ov_config)
+        self.image_encoder = core.compile_model(model_dir / "image_encoder.xml", device, config=None)
+        self.token_embed = core.compile_model(model_dir / "token_embed.xml", device, config=None)
         self.model = core.read_model(model_dir / "llava_with_past.xml")
         self.input_names = {key.get_any_name(): idx for idx, key in enumerate(self.model.inputs)}
         self.output_names = {idx: key for idx, key in enumerate(self.model.outputs)}
@@ -36,6 +36,7 @@ class OVLlavaMistralForCausalLM(GenerationMixin):
         self.key_value_output_names = [key for key in list(self.output_names)[1:]]
         self.stateful = len(self.key_value_input_names) == 0
         compiled_model = core.compile_model(self.model, device, config=ov_config)
+        # compiled_model = core.compile_model(self.model, device, config={"MODEL_DISTRIBUTION_POLICY":"TENSOR_PARALLEL"})
         self.request = compiled_model.create_infer_request()
         self.config = AutoConfig.from_pretrained(model_dir)
         self.generation_config = GenerationConfig.from_model_config(self.config)
