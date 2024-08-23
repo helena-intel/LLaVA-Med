@@ -1,3 +1,53 @@
+# OpenVINO LLaVA-Med
+
+(Please scroll down for original LLaVA-Med README)
+
+This repository adds support for OpenVINO to LLaVA-Med. 
+
+## OpenVINO Quickstart
+
+1. Clone and install the repository (in a Python virtualenv):
+
+```
+git clone https://github.com/helena-intel/LLaVA-Med.git -b helena/openvino-support
+cd LLaVA-Med
+pip install . optimum[openvino]
+```
+
+2. Convert the model to OpenVINO with `python openvino_convert.py`. You can specify the precision for the visual and language models
+   separately in `openvino_convert.py`.
+
+   > NOTE: In initial tests with a previous OpenVINO version, I saw best accuracy/performance with FP32 image precision and INT8 LLM precision.
+
+4. Download the evaluation data.
+
+```
+mkdir -p data/pmc
+mkdir -p data/images
+python llava/data/download_images.py     --input_path data/llava_med_test_image_urls.jsonl     --pmc_output_path data/pmc     --images_output_path data/images
+```
+
+4. Run the evaluation script
+
+The model_vqa.py script can also be used as an example for running inference.
+
+```
+python llava/eval/model_vqa.py --conv-mode mistral_instruct  --model-path $PWD/ov_llava_med_imint8_llmint8     --question-file $PWD/data/eval/llava_med_eval_qa50_qa.jsonl     --image-folder $PWD/data/images     --answers-file $PWD/answers_imint8_llmint8.jsonl --openvino
+```
+
+To compare with PyTorch, remove the `--openvino` flag and set `--model-path microsoft/llava-med-v1.5-mistral-7b`.
+
+The script displays the inference time, and stores the output in the specified answers file. Example output:
+
+```
+Evaluation finished. Total duration: 792.24 s. Mean inference duration: 4.07 s., Median: 3.69 s.
+```
+
+The `eval_multimodal_chat_gpt_score.py` was updated to add local inference instead of GPT-4. Out of the box, this does not result
+in good outputs with Llama-3-8B.
+
+_Original LLaVA-Med README:_
+
 # LLaVA-Med: Large Language and Vision Assistant for Biomedicine
 
 *Visual instruction tuning towards building large language and vision models with GPT-4 level capabilities in the biomedicine space.*
