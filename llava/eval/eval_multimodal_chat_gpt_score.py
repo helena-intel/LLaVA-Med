@@ -133,10 +133,10 @@ def main(args):
 
 if __name__ == '__main__':
    parser = argparse.ArgumentParser("GPT-4 Multimodal Chat Scoring", add_help=True)
-   parser.add_argument("--answers-file", default="/home/sdp/helena/LLaVA-Med/answers_all/answers_ov_bf16_imfp32_llmint8.jsonl", metavar="FILE", help="path to model answer file")
-   parser.add_argument("--question-file", default="/home/sdp/helena/LLaVA-Med/data/eval/llava_med_eval_qa50_qa.jsonl", metavar="FILE", help="path to multichat questions file")
-   parser.add_argument("--scores-file", default="/home/sdp/helena/LLaVA-Med/scores_test.jsonl", metavar="FILE", help="path to save gpt-4 score file")
-   parser.add_argument("--local-model", default="/home/sdp/helena/LLaVA-Med/Meta-LLama-3-8b-Instruct-ov", help="Local OpenVINO model to use for inference instead of GPT-4")
+   parser.add_argument("--answers-file", metavar="FILE", help="path to model answer file")
+   parser.add_argument("--question-file", metavar="FILE", help="path to multichat questions file")
+   parser.add_argument("--scores-file",  metavar="FILE", help="path to save gpt-4 score file")
+   parser.add_argument("--local-model",  help="Local OpenVINO model to use for inference instead of GPT-4")
    parser.add_argument("--limit", type=int, default=5)
 
    args = parser.parse_args()
