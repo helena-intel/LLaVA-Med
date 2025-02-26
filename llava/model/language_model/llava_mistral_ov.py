@@ -3,14 +3,10 @@
 
 # # Visual-language assistant with LLaVA Med and OpenVINO
 
-# ## Prerequisites
-
-# ## Get pretrained model
-
+import os
 from pathlib import Path
 from typing import Optional, Tuple
 
-import nncf
 import numpy as np
 import torch
 from transformers import AutoConfig, StoppingCriteria
@@ -23,19 +19,30 @@ DEFAULT_IMAGE_PATCH_TOKEN = "<im_patch>"
 
 
 class OVLlavaMistralForCausalLM(GenerationMixin):
-    def __init__(self, core, model_dir, device, use_im_start_end, im_patch_token, im_start_token=0, im_end_token=0, ov_config=None):
+    def __init__(self, core, model_dir, device, use_im_start_end, im_patch_token, im_start_token=0, im_end_token=0, ov_config=None, image_device=None):
         if ov_config is None:
             ov_config = {}
+        if image_device is None:
+            image_device = device
+        ov_config.setdefault("CACHE_DIR", os.path.join(model_dir, "model_cache_static"))
         model_dir = Path(model_dir)
-        self.image_encoder = core.compile_model(model_dir / "image_encoder.xml", device, config=None)
-        self.token_embed = core.compile_model(model_dir / "token_embed.xml", device, config=None)
+        image_encoder = core.read_model(model_dir / "image_encoder.xml")
+        image_encoder.reshape((1,3,336,336))
+        # blob_path = Path("model_cache_npu\\compiled_model.blob")
+        # if blob_path.is_file():
+        #     ov_config_npu = {"BLOB_PATH": str(blob_path)}
+        # else:
+        #     ov_config_npu = {"EXPORT_BLOB": "YES", "BLOB_PATH": str(blob_path)}
+        ov_config_image = ov_config
+        self.image_encoder = core.compile_model(image_encoder, image_device.upper(), config=ov_config_image)
+        self.token_embed = core.compile_model(model_dir / "token_embed.xml", device.upper())
         self.model = core.read_model(model_dir / "llava_with_past.xml")
         self.input_names = {key.get_any_name(): idx for idx, key in enumerate(self.model.inputs)}
         self.output_names = {idx: key for idx, key in enumerate(self.model.outputs)}
         self.key_value_input_names = [key for key in list(self.input_names)[1:] if key != "beam_idx"]
         self.key_value_output_names = [key for key in list(self.output_names)[1:]]
         self.stateful = len(self.key_value_input_names) == 0
-        compiled_model = core.compile_model(self.model, device, config=ov_config)
+        compiled_model = core.compile_model(self.model, device.upper(), config=ov_config)
         # compiled_model = core.compile_model(self.model, device, config={"MODEL_DISTRIBUTION_POLICY":"TENSOR_PARALLEL"})
         self.request = compiled_model.create_infer_request()
         self.config = AutoConfig.from_pretrained(model_dir)
@@ -74,6 +81,8 @@ class OVLlavaMistralForCausalLM(GenerationMixin):
         **kwargs,
     ) -> CausalLMOutputWithPast:
         """General inference method"""
+        import warnings
+        warnings.filterwarnings("ignore")
         inputs = {}
         if past_key_values is not None:
             inputs = {}

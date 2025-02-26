@@ -29,7 +29,7 @@ model_id = "microsoft/llava-med-v1.5-mistral-7b"
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = LlavaMistralForCausalLM.from_pretrained(model_id)
 
-image_precision = "int8"  # int8 or fp32
+image_precision = "fp32"  # int8 or fp32
 llm_precision = "int8"  # int4, int8 or fp32
 
 DEFAULT_IMAGE_PATCH_TOKEN = "<im_patch>"
