@@ -11,7 +11,6 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import numpy as np
-import cv2
 import torch
 from PIL import Image
 from transformers import logging

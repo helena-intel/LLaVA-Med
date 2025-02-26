@@ -37,6 +37,8 @@ dependencies = [
     "tiktoken",
     "openai==1.12.0",
     "backoff",
+    "openvino",
+    "optimum-intel",
 ]
 
 [project.optional-dependencies]
