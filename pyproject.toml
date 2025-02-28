@@ -39,6 +39,7 @@ dependencies = [
     "backoff",
     "openvino",
     "optimum-intel",
+    "jupyterlab"
 ]
 
 [project.optional-dependencies]
