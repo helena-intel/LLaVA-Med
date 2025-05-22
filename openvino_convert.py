@@ -73,6 +73,7 @@ def cleanup_torchscript_cache():
 
 ov_out_path = Path(f'ov_llava_med_im{image_precision}_llm{llm_precision}')
 model.config.save_pretrained(ov_out_path)
+tokenizer.save_pretrained(ov_out_path)
 
 image_encoder_path = ov_out_path / "image_encoder.xml"
 token_embedding_model_path = ov_out_path / "token_embed.xml"
