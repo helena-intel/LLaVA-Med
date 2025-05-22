@@ -10,6 +10,9 @@ from typing import List
 from pathlib import Path
 from tqdm import tqdm
 
+from optimum.intel import OVModelForCausalLM
+from transformers import pipeline, AutoTokenizer
+
 import llm
 import util
 
@@ -51,14 +54,20 @@ def chunk(lst, n):
       return
 
 
-def infer(samples):
-    model_inst = llm.GPT("gpt-4-0314")
+def infer(samples, pipe=None):
+    model_inst = None
+    if pipe is None:
+        model_inst = llm.GPT("gpt-4")
+        model_name = "gpt"
+    else:
+        model_name = "llama"
+
 
     BATCH_SIZE = 1
     batch_samples = []
     results = []
     batch = []
-    
+
     print('Starting Multimodal Chat GPT Scoring Eval')
 
     for sample in tqdm(samples):
@@ -67,13 +76,25 @@ def infer(samples):
         batch.append(input_msg)
         batch_samples.append(sample_copy)
         if len(batch)>=BATCH_SIZE:
-            inference_results = [x.strip() for chunk_messages in chunk([x for x in batch if x], BATCH_SIZE) for x in model_inst.infer(chunk_messages)]
+            if pipe is None:
+                # GPT 4 API inference
+                inference_results = [x.strip() for chunk_messages in chunk([x for x in batch if x], BATCH_SIZE) for x in model_inst.infer(chunk_messages)]
+            else:
+                # inference_results = [pipe(batch)[0][0]["generated_text"][-1]["content"]]
+                filtered_batch = [x for x in batch if x]
+                chunked_batches = chunk(filtered_batch, BATCH_SIZE)
+                inference_results = []
+
+                for chunk_messages in chunked_batches:
+                  inferred_messages = pipe(chunk_messages)[0][0]["generated_text"][-1]["content"]
+                          
+                  inference_results.extend([inferred_messages])
+
             for item, inference_result in zip(batch_samples, inference_results):
-                item['gpt_eval'] = inference_result
+                item[f'gpt_eval'] = inference_result
             results.extend(batch_samples)
             batch = []
             batch_samples = []
-    inference_results = [x.strip() for chunk_messages in chunk([x for x in batch if x], BATCH_SIZE) for x in model_inst.infer(chunk_messages)]
     for item, inference_result in zip(batch_samples, inference_results):
         item['gpt_eval'] = inference_result
     results.extend(batch_samples)
@@ -82,9 +103,9 @@ def infer(samples):
 
 
 def main(args):
-    answer_data = util.load_file_jsonl(args.answers_file)
-    question_data = util.load_file_jsonl(args.question_file)
-    
+    answer_data = util.load_file_jsonl(args.answers_file)[:args.limit]
+    question_data = util.load_file_jsonl(args.question_file)[:args.limit]
+
     samples = []
     for question, answer in zip(question_data, answer_data):
         question_copy = deepcopy(question)
@@ -92,8 +113,15 @@ def main(args):
         question['ans1'] = question_copy.pop('gpt4_answer')
         question['ans2'] = answer['text']
         samples.append(question)
-    
-    results = infer(samples)
+
+
+    pipe = None
+    if args.local_model is not None:
+        model = OVModelForCausalLM.from_pretrained(args.local_model)
+        tokenizer = AutoTokenizer.from_pretrained(args.local_model)
+        pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
+
+    results = infer(samples, pipe=pipe)
 
     # Create parent directory of output score files if it doesn't exist
     os.makedirs(Path(args.scores_file).parent, exist_ok=True)
@@ -105,8 +133,11 @@ def main(args):
 
 if __name__ == '__main__':
    parser = argparse.ArgumentParser("GPT-4 Multimodal Chat Scoring", add_help=True)
-   parser.add_argument("--answers-file", default="", metavar="FILE", help="path to model answer file")
-   parser.add_argument("--question-file", default="data/questions/llava_med_eval_qa50_qa.jsonl", metavar="FILE", help="path to multichat questions file")
-   parser.add_argument("--scores-file", default="", metavar="FILE", help="path to save gpt-4 score file")
+   parser.add_argument("--answers-file", metavar="FILE", help="path to model answer file")
+   parser.add_argument("--question-file", metavar="FILE", help="path to multichat questions file")
+   parser.add_argument("--scores-file",  metavar="FILE", help="path to save gpt-4 score file")
+   parser.add_argument("--local-model",  help="Local OpenVINO model to use for inference instead of GPT-4")
+   parser.add_argument("--limit", type=int, default=5)
+
    args = parser.parse_args()
    main(args)

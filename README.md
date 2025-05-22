@@ -1,5 +1,56 @@
 # LLaVA-Med: Large Language and Vision Assistant for Biomedicine
 
+(Please scroll down for original LLaVA-Med README)
+
+This repository adds support for OpenVINO to LLaVA-Med. 
+
+## OpenVINO Quickstart
+
+1. Clone and install the repository (in a Python virtualenv):
+
+```
+git clone https://github.com/helena-intel/LLaVA-Med.git -b helena/openvino-support
+cd LLaVA-Med
+pip install . optimum[openvino]
+```
+
+2. Convert the model to OpenVINO with `python openvino_convert.py`. You can specify the precision for the visual and language models
+   separately in `openvino_convert.py`.
+
+   > NOTE: In initial tests with a previous OpenVINO version, I saw best accuracy/performance with FP32 image precision and INT8 LLM precision.
+
+4. Download the evaluation data.
+
+```
+mkdir -p data/pmc
+mkdir -p data/images
+python llava/data/download_images.py     --input_path data/llava_med_test_image_urls.jsonl     --pmc_output_path data/pmc     --images_output_path data/images
+```
+
+4. Run the evaluation script
+
+The model_vqa.py script can also be used as an example for running inference.
+
+```
+python llava/eval/model_vqa.py --conv-mode mistral_instruct  --model-path $PWD/ov_llava_med_imint8_llmint8     --question-file $PWD/data/eval/llava_med_eval_qa50_qa.jsonl     --image-folder $PWD/data/images     --answers-file $PWD/answers_imint8_llmint8.jsonl --openvino
+```
+
+To compare with PyTorch, remove the `--openvino` flag and set `--model-path microsoft/llava-med-v1.5-mistral-7b`.
+
+The script displays the inference time, and stores the output in the specified answers file. Example output:
+
+```
+Evaluation finished. Total duration: 792.24 s. Mean inference duration: 4.07 s., Median: 3.69 s.
+```
+
+The `eval_multimodal_chat_gpt_score.py` was updated to add local inference instead of GPT-4. Out of the box, this does not result
+in good outputs with Llama-3-8B.
+
+
+Original README:
+
+# LLaVA-Med: Large Language and Vision Assistant for Biomedicine
+
 *Visual instruction tuning towards building large language and vision models with GPT-4 level capabilities in the biomedicine space.*
 
 [[Paper, NeurIPS 2023 Datasets and Benchmarks Track (Spotlight)](https://arxiv.org/abs/2306.00890)] 
@@ -180,24 +231,24 @@ python llava/eval/summarize_gpt_review.py \
 ### Data Download
 | Alignment data files | Size |
 | --- | ---: |
-| [llava_med_alignment_500k.json](https://hanoverprod.z21.web.core.windows.net/med_llava/alignment/llava_med_alignment_500k.json) | 341.52 MiB |
+| [llava_med_alignment_500k.json](data/alignment/llava_med_alignment_500k.json) | 341.52 MiB |
 
 | Instruction-Tuning data files | Size |
 | --- | ---: |
-| [llava_med_instruct_10k.json](https://hanoverprod.z21.web.core.windows.net/med_llava/instruct/llava_med_instruct_10k.json) | 19.24 MiB |
-| [llava_med_instruct_60k.json](https://hanoverprod.z21.web.core.windows.net/med_llava/instruct/llava_med_instruct_60k.json) | 	84.65 MiB |
-| [llava_med_instruct_60k_inline_mention.json](https://hanoverprod.z21.web.core.windows.net/med_llava/instruct/llava_med_instruct_60k_inline_mention.json) | 83.61 MiB |
-| [llava_med_instruct_fig_captions.json](https://hanoverprod.z21.web.core.windows.net/med_llava/instruct/llava_med_instruct_fig_captions.json) | 161.39 MiB |
+| [llava_med_instruct_10k.json](data/instruct/llava_med_instruct_10k.json) | 19.24 MiB |
+| [llava_med_instruct_60k.json](data/instruct/llava_med_instruct_60k.json) | 	84.65 MiB |
+| [llava_med_instruct_60k_inline_mention.json](data/instruct/llava_med_instruct_60k_inline_mention.json) | 83.61 MiB |
+| [llava_med_instruct_fig_captions.json](data/instruct/llava_med_instruct_fig_captions.json) | 161.39 MiB |
 
 | Evaluation files | Size |
 | --- | ---: |
-| [llava_med_eval_qa50_qa.jsonl](https://hanoverprod.z21.web.core.windows.net/med_llava/eval/llava_med_eval_qa50_qa.jsonl) | 	256.18 KiB |
-| [llava_med_eval_qa50_fig_captions.json](https://hanoverprod.z21.web.core.windows.net/med_llava/eval/llava_med_eval_qa50_fig_captions.json) | 51.82 KiB |
-| [llava_med_qa50_instruct_caption_in_text_cleaned-60k-3epoch.json](https://hanoverprod.z21.web.core.windows.net/med_llava/eval/llava_med_qa50_instruct_caption_in_text_cleaned-60k-3epoch.json) | 100.97 KiB |
+| [llava_med_eval_qa50_qa.jsonl](data/eval/llava_med_eval_qa50_qa.jsonl) | 	256.18 KiB |
+| [llava_med_eval_qa50_fig_captions.json](data/eval/llava_med_eval_qa50_fig_captions.json) | 51.82 KiB |
+| [llava_med_qa50_instruct_caption_in_text_cleaned-60k-3epoch.json](data/eval/llava_med_qa50_instruct_caption_in_text_cleaned-60k-3epoch.json) | 100.97 KiB |
 
 | Image URLS | Size |
 | --- | ---: |
-| [llava_med_image_urls.jsonl](https://hanoverprod.z21.web.core.windows.net/med_llava/llava_med_image_urls.jsonl) | 122.82 MiB |
+| [llava_med_image_urls.jsonl](data/llava_med_image_urls.jsonl) | 122.82 MiB |
 
 [download_images.py](https://github.com/microsoft/LLaVA-Med/blob/v1.0.0/llava/data/download_images.py) is used to download the PMC articles using the above image_urls file and extract the images
 

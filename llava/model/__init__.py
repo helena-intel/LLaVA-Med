@@ -1,1 +1,2 @@
-from .language_model.llava_mistral import LlavaMistralForCausalLM, LlavaMistralConfig
+from .language_model.llava_mistral import LlavaMistralForCausalLM, LlavaMistralConfig, LlavaMistralModel
+from .language_model.llava_mistral_ov import OVLlavaMistralForCausalLM
