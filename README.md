@@ -9,7 +9,7 @@ This repository adds support for OpenVINO to LLaVA-Med.
 1. Clone and install the repository (in a Python virtualenv):
 
 ```
-git clone https://github.com/helena-intel/LLaVA-Med.git -b helena/openvino-support
+git clone https://github.com/helena-intel/LLaVA-Med.git
 cd LLaVA-Med
 pip install . optimum[openvino]
 ```
