@@ -33,12 +33,6 @@ tokenizer, model, image_processor, context_len = load_pretrained_model(
 )
 print("loaded models")
 
-questions = []
-with open("data/eval/llava_med_eval_qa50_qa.jsonl") as f:
-    for line in f:
-        questions.append(json.loads(line))
-
-
 # ## Functions
 
 def prepare_inputs_image(question, image):
