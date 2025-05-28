@@ -25,8 +25,10 @@ image_folder = "data\\qa50_images"
 
 
 # ## Load Model and Data
-
 model_path = "llava-med-imf16-llmint8"
+# model_path = "llava-med-imf16-llmf16"
+# model_path = "llava-med-imf16-llmint4"
+
 model_name = get_model_name_from_path(model_path)
 tokenizer, model, image_processor, context_len = load_pretrained_model(
     model_path=model_path, model_base=None, model_name=model_name, device="gpu", openvino=True, image_device="gpu"
