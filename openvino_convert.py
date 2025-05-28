@@ -30,7 +30,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = LlavaMistralForCausalLM.from_pretrained(model_id)
 
 image_precision = "fp16"  # int8 or fp16
-llm_precision = "int8"  # int4, int8 or fp32
+llm_precision = "int8"  # int4, int8 or fp16
 
 DEFAULT_IMAGE_PATCH_TOKEN = "<im_patch>"
 
@@ -71,7 +71,7 @@ def cleanup_torchscript_cache():
     torch.jit._state._clear_class_state()
 
 
-ov_out_path = Path(f'ov_llava_med_im{image_precision}_llm{llm_precision}')
+ov_out_path = Path(f'llava-med-im{image_precision}-llm{llm_precision}')
 model.config.save_pretrained(ov_out_path)
 tokenizer.save_pretrained(ov_out_path)
 
@@ -394,7 +394,7 @@ if not second_stage_model_path.exists():
         llava_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT8_ASYM)
     elif llm_precision == "int4":
         llava_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT4_ASYM, group_size=128, ratio=0.8)
-    if llm_precision != "fp32":
+    if llm_precision in ("int4", "int8"):
         print("Applying weight compression to second stage LLava model")
         ov_model = nncf.compress_weights(ov_model, **llava_wc_parameters)
 
