@@ -4,7 +4,12 @@
 
 This repository adds support for OpenVINO to LLaVA-Med. 
 
-## OpenVINO Quickstart
+## Gradio Demo
+
+See [install_gradio_demo.md](./install_gradio_demo.md) for step-by-step instructions for installing the OpenVINO LLaVA-Med Gradio demo. It is not needed to clone this repository to install the demo. The demo uses
+a pre-converted LLaVA-Med model.
+
+## OpenVINO Usage
 
 1. Clone and install the repository (in a Python virtualenv):
 
