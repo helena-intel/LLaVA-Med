@@ -28,11 +28,6 @@ class OVLlavaMistralForCausalLM(GenerationMixin):
         model_dir = Path(model_dir)
         image_encoder = core.read_model(model_dir / "image_encoder.xml")
         image_encoder.reshape((1,3,336,336))
-        # blob_path = Path("model_cache_npu\\compiled_model.blob")
-        # if blob_path.is_file():
-        #     ov_config_npu = {"BLOB_PATH": str(blob_path)}
-        # else:
-        #     ov_config_npu = {"EXPORT_BLOB": "YES", "BLOB_PATH": str(blob_path)}
         ov_config_image = ov_config
         self.image_encoder = core.compile_model(image_encoder, image_device.upper(), config=ov_config_image)
         self.token_embed = core.compile_model(model_dir / "token_embed.xml", device.upper())
@@ -43,7 +38,6 @@ class OVLlavaMistralForCausalLM(GenerationMixin):
         self.key_value_output_names = [key for key in list(self.output_names)[1:]]
         self.stateful = len(self.key_value_input_names) == 0
         compiled_model = core.compile_model(self.model, device.upper(), config=ov_config)
-        # compiled_model = core.compile_model(self.model, device, config={"MODEL_DISTRIBUTION_POLICY":"TENSOR_PARALLEL"})
         self.request = compiled_model.create_infer_request()
         self.config = AutoConfig.from_pretrained(model_dir)
         self.generation_config = GenerationConfig.from_model_config(self.config)

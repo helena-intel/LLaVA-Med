@@ -22,7 +22,7 @@ pip install . optimum[openvino]
 2. Convert the model to OpenVINO with `python openvino_convert.py`. You can specify the precision for the visual and language models
    separately in `openvino_convert.py`.
 
-   > NOTE: In initial tests with a previous OpenVINO version, I saw best accuracy/performance with FP32 image precision and INT8 LLM precision.
+   > NOTE: In initial tests with a previous OpenVINO version, I saw best accuracy/performance with FP32/FP16 image precision and INT8 LLM precision.
 
 4. Download the evaluation data.
 
