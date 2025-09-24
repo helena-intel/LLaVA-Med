@@ -111,9 +111,22 @@ class LlavaMedOV:
                 writer.writerow(perf_record)
 
             df = pd.read_csv(logfile)[
-                ["model_path", "system", "openvino", "image_device","llm_device", "num_output_tokens", "duration", "throughput (tok/sec)", "latency (ms/token)"]
+                [
+                    "model_path",
+                    "system",
+                    "openvino",
+                    "image_device",
+                    "llm_device",
+                    "num_output_tokens",
+                    "duration",
+                    "throughput (tok/sec)",
+                    "latency (ms/token)",
+                ]
             ]
-            pivot = df.pivot_table(index=["model_path","image_device", "llm_device"], values=["duration", "throughput (tok/sec)", "latency (ms/token)"])
+            pivot = df.pivot_table(
+                index=["model_path", "image_device", "llm_device"],
+                values=["duration", "throughput (tok/sec)", "latency (ms/token)"],
+            )
             with open("llavamed_performance_summary.txt", "w") as f:
                 f.write(pivot.to_markdown())
             df.to_csv("llavamed_performance.csv")

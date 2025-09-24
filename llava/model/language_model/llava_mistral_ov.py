@@ -24,11 +24,12 @@ class OVLlavaMistralForCausalLM(GenerationMixin):
             ov_config = {}
         if image_device is None:
             image_device = device
-        ov_config.setdefault("CACHE_DIR", os.path.join(model_dir, "model_cache_static"))
+        ov_config.setdefault("CACHE_DIR", os.path.join(model_dir, "model_cache"))
+        ov_config.setdefault("DYNAMIC_QUANTIZATION_GROUP_SIZE", 0)
         model_dir = Path(model_dir)
         image_encoder = core.read_model(model_dir / "image_encoder.xml")
         image_encoder.reshape((1,3,336,336))
-        ov_config_image = ov_config
+        ov_config_image = {key:value for key,value in ov_config.items() if "DYNAMIC_QUANTIZATION" not in key}
         self.image_encoder = core.compile_model(image_encoder, image_device.upper(), config=ov_config_image)
         self.token_embed = core.compile_model(model_dir / "token_embed.xml", device.upper())
         self.model = core.read_model(model_dir / "llava_with_past.xml")

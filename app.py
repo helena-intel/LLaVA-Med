@@ -48,19 +48,10 @@ with gr.Blocks(css=css) as demo:
         process_button = gr.Button("Process")
         reset_button = gr.Button("Reset")
 
-    gr.Examples(
-        [
-            [
-                "Create a draft handoff note summarizing what impact this latest image has to the patient and what the care team should measure over the next shift citing specific research and workflows."
-            ]
-        ],
-        text_input,
-    )
-
     gr.Markdown(
-        "NOTE: Results are provisional and may contain errors. Use this demo to explore AI PC and OpenVINO optimizations"
+        "NOTE: This model is for research purposes only and can make mistakes. Use this demo to explore AI PC and OpenVINO optimizations."
     )
-    gr.Markdown("Source model: [microsoft/LLaVA-Med](https://github.com/microsoft/LLaVA-Med). For research purposes only.")
+    gr.Markdown("Source model: [microsoft/LLaVA-Med](https://github.com/microsoft/LLaVA-Med).")
 
     process_button.click(process_inputs, inputs=[image_input, text_input], outputs=output_text)
     text_input.submit(process_inputs, inputs=[image_input, text_input], outputs=output_text)
