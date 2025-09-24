@@ -1,18 +1,30 @@
+import csv
+import importlib.metadata
 import time
 import warnings
+from pathlib import Path
 
 warnings.filterwarnings("ignore")
 
+import openvino as ov
+import pandas as pd
 from PIL import Image
 from transformers import logging
 
 from llava.constants import DEFAULT_IMAGE_TOKEN, IMAGE_TOKEN_INDEX
 from llava.conversation import conv_templates
-from llava.mm_utils import (get_model_name_from_path, process_images,
-                            tokenizer_image_token)
+from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
 from llava.model.builder import load_pretrained_model
 
 logging.set_verbosity_error()
+
+ENABLE_PERFORMANCE_METRICS = True
+
+
+def perf_metrics(num_tokens, duration):
+    tps = round(num_tokens / duration, 2)
+    latency = round((duration / num_tokens) * 1000, 2)
+    return tps, latency
 
 
 class LlavaMedOV:
@@ -26,8 +38,15 @@ class LlavaMedOV:
         self.image_processor = None
 
     def load_model(self, image_device, llm_device):
+        self.image_device = image_device
+        self.llm_device = llm_device
         self.tokenizer, self.model, self.image_processor, context_len = load_pretrained_model(
-            model_path=self.model_path, model_base=None, model_name=self.model_name, device=llm_device, openvino=True, image_device=image_device
+            model_path=self.model_path,
+            model_base=None,
+            model_name=self.model_name,
+            device=llm_device,
+            openvino=True,
+            image_device=image_device,
         )
 
     def prepare_inputs_image(self, question, image):
@@ -57,11 +76,48 @@ class LlavaMedOV:
             use_cache=True,
         )
         end = time.perf_counter()
-        print(f"Inference duration: {end-start:.2f} seconds")
+        duration = end - start
+        print(f"Inference duration: {duration:.2f} seconds")
         input_length = input_ids.shape[-1]
         ov_output_ids = ov_output_ids[:, input_length:]
+        output_num_tokens = ov_output_ids.shape[-1]
         answer = self.tokenizer.batch_decode(ov_output_ids, skip_special_tokens=True)[0].strip()
         print(f"Answer: {answer}")
+
+        if ENABLE_PERFORMANCE_METRICS:
+            logfile = "llavamed_performance_debug.csv"
+            tps, latency = perf_metrics(output_num_tokens, duration)
+            system = ov.Core().get_property("CPU", "FULL_DEVICE_NAME")
+            ov_version = importlib.metadata.version("openvino")
+            perf_record = {
+                "model_path": Path(self.model_path).name,
+                "system": system,
+                "openvino": ov_version,
+                "image_device": self.image_device,
+                "llm_device": self.llm_device,
+                "question": question,
+                "answer": answer,
+                "num_output_tokens": output_num_tokens,
+                "duration": duration,
+                "throughput (tok/sec)": tps,
+                "latency (ms/token)": latency,
+            }
+            print(perf_record)
+            writeheader = not Path(logfile).is_file()
+            with open(logfile, "a", newline="") as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=perf_record.keys())
+                if writeheader:
+                    writer.writeheader()
+                writer.writerow(perf_record)
+
+            df = pd.read_csv(logfile)[
+                ["model_path", "system", "openvino", "image_device","llm_device", "num_output_tokens", "duration", "throughput (tok/sec)", "latency (ms/token)"]
+            ]
+            pivot = df.pivot_table(index=["model_path","image_device", "llm_device"], values=["duration", "throughput (tok/sec)", "latency (ms/token)"])
+            with open("llavamed_performance_summary.txt", "w") as f:
+                f.write(pivot.to_markdown())
+            df.to_csv("llavamed_performance.csv")
+
         return answer
 
 
@@ -75,7 +131,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("image", help="path to image")
-    parser.add_argument("--model", required=False, default="llava-med-imf16-llmint8", help="path to llava-med OpenVINO model directory")
+    parser.add_argument(
+        "--model", required=False, default="llava-med-imf16-llmint8", help="path to llava-med OpenVINO model directory"
+    )
     parser.add_argument("--image_device", required=False, default="NPU", help="Device for image model")
     parser.add_argument("--llm_device", required=False, default="GPU", help="Device for LLM")
     args = parser.parse_args()
