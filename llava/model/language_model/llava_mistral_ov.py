@@ -13,7 +13,7 @@ from transformers import AutoConfig, StoppingCriteria
 from transformers.generation import GenerationConfig, GenerationMixin
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-from llava.constants import IMAGE_TOKEN_INDEX, IGNORE_INDEX
+from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX
 
 DEFAULT_IMAGE_PATCH_TOKEN = "<im_patch>"
 
@@ -50,6 +50,8 @@ class OVLlavaMistralForCausalLM(GenerationMixin):
         self.im_start_token = im_start_token
         self.im_end_token = im_end_token
         self.next_beam_idx = None
+        self.llm_latencies = []
+        self.image_latencies = []
 
     def can_generate(self):
         """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
@@ -79,6 +81,8 @@ class OVLlavaMistralForCausalLM(GenerationMixin):
         import warnings
         warnings.filterwarnings("ignore")
         inputs = {}
+        batch_size = input_ids.shape[0]
+
         if past_key_values is not None:
             inputs = {}
             if not self.stateful:
@@ -104,6 +108,7 @@ class OVLlavaMistralForCausalLM(GenerationMixin):
         # Run inference
         self.request.start_async(inputs, share_inputs=True)
         self.request.wait()
+        self.llm_latencies.append(self.request.latency)
 
         logits = torch.from_numpy(self.request.get_tensor(self.output_names[0]).data)
 
@@ -153,7 +158,9 @@ class OVLlavaMistralForCausalLM(GenerationMixin):
             image_features = [x.flatten(0, 1).to(self.device) for x in image_features]
         else:
             # image_features = self.encode_images(images).to(self.device)
-            res = self.image_encoder(images)
+            self.image_request = self.image_encoder.create_infer_request()
+            res = self.image_request.infer(images)
+            self.image_latencies.append(self.image_request.latency)
             image_features = torch.as_tensor(res[0])
 
         # TODO: image start / end is not implemented here to support pretraining.

@@ -6,6 +6,7 @@ from pathlib import Path
 
 warnings.filterwarnings("ignore")
 
+import numpy as np
 import openvino as ov
 import pandas as pd
 from PIL import Image
@@ -13,7 +14,8 @@ from transformers import logging
 
 from llava.constants import DEFAULT_IMAGE_TOKEN, IMAGE_TOKEN_INDEX
 from llava.conversation import conv_templates
-from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
+from llava.mm_utils import (get_model_name_from_path, process_images,
+                            tokenizer_image_token)
 from llava.model.builder import load_pretrained_model
 
 logging.set_verbosity_error()
@@ -85,24 +87,31 @@ class LlavaMedOV:
         print(f"Answer: {answer}")
 
         if ENABLE_PERFORMANCE_METRICS:
+            first_latency = self.model.llm_latencies[0]
+            second_latency = np.mean(self.model.llm_latencies[1:])
+            avg_latency = np.mean(self.model.llm_latencies)
+            image_latency = self.model.image_latencies[0]
             logfile = "llavamed_performance_debug.csv"
             tps, latency = perf_metrics(output_num_tokens, duration)
             system = ov.Core().get_property("CPU", "FULL_DEVICE_NAME")
             ov_version = importlib.metadata.version("openvino")
             perf_record = {
-                "model_path": Path(self.model_path).name,
+                "model path": Path(self.model_path).name,
                 "system": system,
                 "openvino": ov_version,
-                "image_device": self.image_device,
-                "llm_device": self.llm_device,
+                "image device": self.image_device,
+                "llm device": self.llm_device,
                 "question": question,
                 "answer": answer,
-                "num_output_tokens": output_num_tokens,
+                "output tokens": output_num_tokens,
                 "duration": duration,
                 "throughput (tok/sec)": tps,
-                "latency (ms/token)": latency,
+                "llm avg latency (ms)": avg_latency,
+                "llm 1st latency (ms)": first_latency,
+                "llm 2nd latency (ms)": second_latency,
+                "image latency (ms)": image_latency,
             }
-            print(perf_record)
+
             writeheader = not Path(logfile).is_file()
             with open(logfile, "a", newline="") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=perf_record.keys())
@@ -110,25 +119,24 @@ class LlavaMedOV:
                     writer.writeheader()
                 writer.writerow(perf_record)
 
-            df = pd.read_csv(logfile)[
-                [
-                    "model_path",
-                    "system",
-                    "openvino",
-                    "image_device",
-                    "llm_device",
-                    "num_output_tokens",
+            min_columns = [item for item in perf_record if item not in ("question", "answer")]
+            df = pd.read_csv(logfile)[min_columns]
+
+            pivot = df.pivot_table(
+                index=["model path", "image device", "llm device"],
+                values=[
                     "duration",
                     "throughput (tok/sec)",
-                    "latency (ms/token)",
-                ]
-            ]
-            pivot = df.pivot_table(
-                index=["model_path", "image_device", "llm_device"],
-                values=["duration", "throughput (tok/sec)", "latency (ms/token)"],
+                    "llm avg latency (ms)",
+                    "llm 1st latency (ms)",
+                    "llm 2nd latency (ms)",
+                    "image latency (ms)",
+                ],
             )
+            performance_summary = pivot.T.to_markdown()
+            print(performance_summary)
             with open("llavamed_performance_summary.txt", "w") as f:
-                f.write(pivot.to_markdown())
+                f.write(performance_summary)
             df.to_csv("llavamed_performance.csv")
 
         return answer
