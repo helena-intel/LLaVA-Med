@@ -51,7 +51,7 @@ with gr.Blocks(css=css) as demo:
     gr.Markdown(
         "NOTE: This model is for research purposes only and can make mistakes. Use this demo to explore AI PC and OpenVINO optimizations."
     )
-    gr.Markdown("Source model: [microsoft/LLaVA-Med](https://github.com/microsoft/LLaVA-Med).")
+    gr.Markdown("Source model: [microsoft/LLaVA-Med](https://github.com/microsoft/LLaVA-Med). For research purposes only.")
 
     process_button.click(process_inputs, inputs=[image_input, text_input], outputs=output_text)
     text_input.submit(process_inputs, inputs=[image_input, text_input], outputs=output_text)
