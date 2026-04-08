@@ -1,1 +1,3 @@
-start cmd /k llava_env\Scripts\python app.py
+@echo off
+set VIRTUAL_ENV=
+uv run python app.py

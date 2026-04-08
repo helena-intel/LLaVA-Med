@@ -7,7 +7,7 @@ name = "llava_med"
 version = "1.5.0"
 description = "Towards GPT-4 like large language and visual assistant."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11,<3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: Apache Software License",
@@ -37,11 +37,11 @@ dependencies = [
     "openai==1.12.0",
     "backoff",
     "optimum-intel[openvino]",
+    "hf_xet",
     "jupyterlab"
 ]
 
 [project.optional-dependencies]
-train = ["deepspeed==0.9.5", "ninja", "wandb"]
 eval = [
     "azure-ai-ml",
     "datasets",
@@ -82,6 +82,10 @@ exclude = [
     "tests*",
 ]
 
+[tool.uv]
+python-preference = "managed"
+environments = ["sys_platform == 'win32'"]
+
 [tool.black]
 line-length = 120
 skip-string-normalization = true
@@ -97,3 +101,4 @@ exclude = [
     "wandb",
     "docs",
 ]
+
