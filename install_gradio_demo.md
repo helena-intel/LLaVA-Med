@@ -6,8 +6,10 @@ This document provides step-by-step instructions to install the LlaVA-Med 1.5 Op
 
 ### Prerequisites 
 
-- Install Python 3.10 or Python 3.11 from python.org. Select the option to add Python to the environment variables and Path.
+- Install Python 3.10 or Python 3.11 from python.org. Later versions do not work! Select the option to add Python to the environment variables and Path.
 - Install Git from https://git-scm.com/downloads/win Make sure to select the recommended option to use git from the command line (not just from Git Bash)
+
+  <img width="580" height="384" alt="image" src="https://github.com/user-attachments/assets/7500ae7f-fe63-4173-816a-dad4ec99f9af" />
 
 ### Install the demo
 
@@ -57,4 +59,4 @@ The installation script creates an update.bat file in the llavamed_demo director
 
 ## Troubleshooting 
 
-If the installation script doesn’t complete, for example because git or python are missing, the easiest solution is to delete the llavamed_demo directory, start a new terminal, and run install_demo.bat again.  
+If the installation script doesn’t complete, for example because git or python are missing, the easiest solution is to delete the llavamed_demo directory, start a new terminal, and run install_demo.bat again.
