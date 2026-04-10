@@ -17,7 +17,8 @@ mkdir llavamed_demo
 cd llavamed_demo
 
 REM Clone the repo and install all dependencies (auto-downloads Python 3.11)
-git clone https://github.com/helena-intel/LLaVA-Med.git --single-branch --branch helena/uv .
+git clone https://github.com/helena-intel/LLaVA-Med.git --single-branch --branch helena/uv --depth 1
+cd LLaVA-Med
 uv sync
 
 REM Download model files
@@ -28,13 +29,24 @@ git clone https://github.com/LiangXin1001/LLaVA_Med_qa50_images.git
 tar -xf LLaVA_Med_qa50_images\qa50_images.zip
 move qa50_images data
 
-REM Create update script
-echo @echo off > update.bat
-echo set VIRTUAL_ENV= >> update.bat
-echo git pull >> update.bat
-echo uv sync >> update.bat
-echo uv run hf download helenai/llava-med-imf16-llmint8 --local-dir llava-med-imf16-llmint8 >> update.bat
+REM Create update script in parent directory
+(
+echo @echo off
+echo set VIRTUAL_ENV=
+echo pushd .
+echo cd LLaVA-Med
+echo git pull
+echo uv sync
+echo uv run hf download helenai/llava-med-imf16-llmint8 --local-dir llava-med-imf16-llmint8
+echo popd
+) > ..\update.bat
 
+REM Copy launch script to parent directory
+copy launch_app.bat ..\launch_app.bat
+
+cd ..
 echo.
-echo === Installation complete! Run launch_app.bat to start the demo. ===
+echo === Installation complete! ===
+echo To start the demo, run launch_app.bat from the llavamed_demo directory:
+echo   launch_app.bat
 

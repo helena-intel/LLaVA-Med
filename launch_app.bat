@@ -1,3 +1,5 @@
 @echo off
 set VIRTUAL_ENV=
-uv run python app.py
+if exist LLaVA-Med\pyproject.toml pushd LLaVA-Med
+start "LLaVA-Med Demo" /wait uv run python app.py
+popd 2>nul

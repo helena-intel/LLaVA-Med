@@ -29,12 +29,12 @@ install_demo.bat
 
 Running `install_demo.bat` will:
 
-- create a llavamed_demo directory 
-- clone the LLaVA-Med repository
+- create a `llavamed_demo` directory with a `LLaVA-Med` subdirectory containing the cloned repository
 - automatically download Python 3.11 (managed by uv) and install all dependencies
-- download the model and sample images
+- download the model and sample images into the `LLaVA-Med` directory
+- create `launch_app.bat` and `update.bat` scripts in the `llavamed_demo` directory
 
-> NOTE: if you want to install the demo manually, or modify the installation, you can of course run all the steps in [install_demo.bat](https://github.com/helena-intel/LLaVA-Med/blob/main/install_demo.bat) manually
+> NOTE: if you want to install the demo manually, or modify the installation, you can of course run all the steps in [install_demo.bat](https://github.com/helena-intel/LLaVA-Med/blob/helena/uv/install_demo.bat) manually
 
 ## Run the demo 
 
@@ -43,7 +43,7 @@ When the app has loaded, this will be shown in the command prompt. Click on the 
 
 ### Option: run manually
 
-To run the gradio app manually, from the llavamed_demo directory run:
+To run the gradio app manually, from the `llavamed_demo\LLaVA-Med` directory run:
 
 ```
 uv run python app.py 
