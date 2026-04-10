@@ -17,10 +17,10 @@ This document provides step-by-step instructions to install the LlaVA-Med 1.5 Op
 
 ### Install the demo
 
-In a command prompt (not PowerShell), in the directory where you want to install the demo, run:
+In a command prompt, in the directory where you want to install the demo, run:
 
 ```
-curl.exe -O https://raw.githubusercontent.com/helena-intel/LLaVA-Med/refs/heads/main/install_demo.bat 
+curl.exe -O https://raw.githubusercontent.com/helena-intel/LLaVA-Med/refs/heads/helena/uv/install_demo.bat 
 ```
 and then
 ```
